@@ -82,6 +82,6 @@ When the user asks a question, we must convert the query into a query embedding 
 Feed the retrieved chunks + user query to the LLM and LLM generates an answer grounded in the retrieved documents, reducing hallucinations.
 
 
-<img width="664" height="774" alt="Screenshot 2025-11-20 at 11 31 36" src="https://github.com/user-attachments/assets/fadfde55-6fd7-4b16-a115-d8d0dcb431b4" />
+<img width="664" height="774" alt="Screenshot 2025-11-20 at 11 31 36" Title= "RAG Workflow" src="https://github.com/user-attachments/assets/fadfde55-6fd7-4b16-a115-d8d0dcb431b4" />
 
 
