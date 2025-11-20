@@ -58,3 +58,30 @@ Convert each text chunk into a vector representation using an embedding model:
  - OpenAI: text-embedding-3-small or text-embedding-3-large
  - Cohere, HuggingFace, or other embedding models
 
+## 5. Vector Store / Index
+
+Store all embeddings in a vector database for fast similarity search. In fact, we have to definea  collection and a database schema.
+### Schema Example:
+        ids = []
+        metadatas = []
+        documents_text = []
+        embedding_list= []
+
+### Tools Example ; 
+
+- FAISS (local, fast)
+- Weaviate, Pinecone, Milvus (cloud-ready)
+- Chroma (open-source, simple)
+  
+## 6. Retrieval
+
+When the user asks a question, we must convert the query into a query embedding using the same model, search the vector store for top-k, and return the most relevant chunks to the LLM.
+
+## 7. Generation
+
+Feed the retrieved chunks + user query to the LLM and LLM generates an answer grounded in the retrieved documents, reducing hallucinations.
+
+
+<img width="664" height="774" alt="Screenshot 2025-11-20 at 11 31 36" src="https://github.com/user-attachments/assets/fadfde55-6fd7-4b16-a115-d8d0dcb431b4" />
+
+
