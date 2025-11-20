@@ -3,3 +3,4 @@ data/
 *.json
 typesense.ipynb
 agenticrag/
+books.jsonl
