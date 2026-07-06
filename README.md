@@ -15,10 +15,19 @@ With RAG: The system retrieves your internal refund policy document and The LLM 
 
 ## RAG Workflow Steps
 
-### 1. Data Collection / Ingestion
-
+### 1. Data Collection / Ingestion: 
 Collect all the sources like (PDFs, Word documents, HTML pages, emails, spreadsheets, internal knowledge bases, databases)  that the -bold RAG system will use 
 
+A Power Automate flow is triggered whenever a new application email arrives at the hello@ inbox. The flow performs the following actions:
+
+Trigger: New email received at hello@... address
+Store attachment: Saves the received application .pdf / .docx files into Azure Blob Storage
+Update Candidate Table in Azure SQL Database: Inserts a new record with:
+
+  - File name
+  - Inserted date (timestamp)
+  - Email subject
+  - Sender email address (candidate's "To" or "From" email)
 
 ### 2. Data Parsing
 
