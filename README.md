@@ -45,7 +45,7 @@ A Power Automate flow is triggered whenever a new application email arrives at t
 LLMs cannot read PDFs or Excel files directly so we are using Loaders to convert raw files into text that the LLM model can understand them.  Document loaders provide a standard interface for reading data from different sources (such as Slack, Notion, or Google Drive) into LangChain’s Document format. This ensures that data can be handled consistently regardless of the source.
 All document loaders implement the BaseLoader interface.
 
-#### Tools Examples:
+#### 2.1 Tools Examples:
 | Loader Type       | Example                 | Notes                                   |
 | ----------------- | ----------------------- | --------------------------------------- |
 | PDF Loader        | `PyPDFLoader`           | Reads PDF pages into text               |
@@ -56,7 +56,26 @@ All document loaders implement the BaseLoader interface.
 | Web / HTML Loader | `UnstructuredURLLoader` | Fetches webpage content and cleans HTML |
 | Email Loader      | `EmailLoader`           | Extracts email subject/body             |
 
-
+An **Azure Function** with an **Event Grid trigger** listens for new blobs across several containers and routes processing based on which container/file type triggered the event.
+ 
+#### 2.2 **Trigger:** New blob created in the `cvfiles` container, with a `.pdf` extension.
+ 
+#### 2.3 **Flow:**
+1. The Event Grid event payload is parsed to get the container name and blob name/URL.
+2. The PDF file is downloaded from Blob Storage.
+3. Text is extracted from the PDF using **PyPDF2**.
+4. The extracted text is sent to an LLM (via an OpenAI-compatible client, `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT`) with a strict extraction prompt that builds a structured, #### #### 2.4 **factual-only** candidate profile (no inference/hallucination) containing:
+   - `candidate_title`
+   - `years_experience`
+   - `industry_domains`
+   - `technical_skills`
+   - `professional_experience` (role, company, dates, description)
+   - `education` (degree, field, institution)
+   - `languages`
+   - `additional_information`
+5. The resulting JSON metadata is uploaded to the **`cv-metadata`** container as `{candidate_name}.json`.
+#### 2.5 **Output of this step:** A structured JSON profile per candidate, stored in `cv-metadata`, which in turn triggers **Step 3**.
+ 
 ### 3. Chunking
 
 Split loaded documents into smaller chunks because LLMs have a context window limit and feeding an entire book or large report will fail.
