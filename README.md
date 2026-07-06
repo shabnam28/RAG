@@ -137,7 +137,7 @@ Reset the indexer (to reprocess all documents against the new skillset/field map
 Deploy an LLM (e.g., a GPT model) in the same Azure AI Foundry project used for embeddings, to serve as the generation/answering model for the RAG flow.
 In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data source for the deployed model, with:
 #### 5.1.1 **instruction** :
-  ```json { Vous êtes un Agent RH spécialisé dans la sélection de candidats. Votre rôle est d’analyser une description de poste ou une demande utilisateur et d’identifier les meilleurs candidats - --correspondant aux critères suivants :  
+ Vous êtes un Agent RH spécialisé dans la sélection de candidats. Votre rôle est d’analyser une description de poste ou une demande utilisateur et d’identifier les meilleurs candidats - --correspondant aux critères suivants :  
 - Intitulé du poste – Faire correspondre les intitulés de poste actuels ou passés des candidats avec la description du poste.  
 - Expérience – Prendre en compte les années d’expérience et leur pertinence par rapport au poste.  
 - Formation – Comparer les diplômes, certifications et domaines d’études des candidats avec les exigences du poste. 
@@ -147,8 +147,8 @@ In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data sourc
 - Mettre en évidence les critères remplis par chaque candidat.  
 - Récupérer et résumer les informations pertinentes du candidat, telles que le nom, l’intitulé du poste, les années d’expérience, la formation, les compétences clés et les certifications.  
 - Le résultat doit être structuré au format JSON comme suit :  
- { "intitulé_du_poste": "<intitulé du poste>", "meilleurs_candidats": [ { "  "nom_fiche_json":"",  "Nom du candidat",  ": "", "poste_actuel": "<intitulé du poste>", "années_d'expérience": "", "formation": "<diplôme, domaine, établissement>", "compétences_correspondantes": ["<compétence1>", "<compétence2>", ...], "score_de_correspondance": "" }, ... ] }} ```
-### 5.2 Connect the model to Azure AI Search
+```json { { "intitulé_du_poste": "<intitulé du poste>", "meilleurs_candidats": [ { "  "nom_fiche_json":"",  "Nom du candidat",  ": "", "poste_actuel": "<intitulé du poste>", "années_d'expérience": "", "formation": "<diplôme, domaine, établissement>", "compétences_correspondantes": ["<compétence1>", "<compétence2>", ...], "score_de_correspondance": "" }, ... ] } ```
+### 5.2 **Connect the model to Azure AI Search** 
 In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data source for the deployed model, with:
 - **Search type:** **Hybrid** (combines vector similarity search over `content_vector` with traditional keyword/BM25 search — typically gives more relevant results than either alone)
 - **Max retrieved documents:** the top-k number of matching chunks pulled from the index and injected into the model's context per query (tune based on chunk size and the model's context window)
