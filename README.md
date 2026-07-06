@@ -43,28 +43,28 @@ A Power Automate flow is triggered whenever a new application email arrives at t
 ### 2. Data Parsing
 
 LLMs cannot read PDFs or Excel files directly so we are using Loaders to convert raw files into text that the LLM model can understand them.  Document loaders provide a standard interface for reading data from different sources (such as Slack, Notion, or Google Drive) into LangChain’s Document format. This ensures that data can be handled consistently regardless of the source.
-All document loaders implement the BaseLoader interface.
-
-#### 2.1 Tools Examples:
-| Loader Type       | Example                 | Notes                                   |
-| ----------------- | ----------------------- | --------------------------------------- |
-| PDF Loader        | `PyPDFLoader`           | Reads PDF pages into text               |
-| DOCX Loader       | `Docx2txtLoader`        | Extracts text from Word documents       |
-| TXT Loader        | `TextLoader`            | Simple plain text                       |
-| CSV Loader        | `CSVLoader`             | Reads specific columns as text          |
-| JSON Loader       | `JSONLoader`            | Parses JSON fields as text              |
-| Web / HTML Loader | `UnstructuredURLLoader` | Fetches webpage content and cleans HTML |
-| Email Loader      | `EmailLoader`           | Extracts email subject/body             |
-
 An **Azure Function** with an **Event Grid trigger** listens for new blobs across several containers and routes processing based on which container/file type triggered the event.
+
+#### 2.2 Event Grid Subscription Setup (prerequisite)
  
-#### 2.2 **Trigger:** New blob created in the `cvfiles` container, with a `.pdf` extension.
+Before the function can react automatically to new files, an **Event Grid Subscription** must be created on the Storage Account, pointing to this Azure Function:
  
-#### 2.3 **Flow:**
+1. In the Storage Account, go to **Events** → **+ Event Subscription**.
+2. Set the event schema to **Event Grid Schema** and the event type to **Blob Created**.
+3. Optionally scope the subscription to a specific container (e.g., `cvfiles`) using a subject filter (`/blobServices/default/containers/cvfiles/`).
+4. Set the endpoint type to **Azure Function** and select this function as the endpoint.
+5. Save — new blob uploads will now automatically trigger the function via the `EventGridTrigger`.
+Without this subscription, uploading a file to Blob Storage will **not** invoke the function.
+ 
+#### 2.3 **Trigger:** New blob created in the `cvfiles` container, with a `.pdf` extension.
+ 
+#### 2.4 **Flow:**
 1. The Event Grid event payload is parsed to get the container name and blob name/URL.
 2. The PDF file is downloaded from Blob Storage.
 3. Text is extracted from the PDF using **PyPDF2**.
-4. The extracted text is sent to an LLM (via an OpenAI-compatible client, `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT`) with a strict extraction prompt that builds a structured, #### #### 2.4 **factual-only** candidate profile (no inference/hallucination) containing:
+4. The extracted text is sent to an LLM (via an OpenAI-compatible client, `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT`) with a strict extraction prompt that builds a structured, ####
+
+#### 2.5 **factual-only** candidate profile (no inference/hallucination) containing:
    - `candidate_title`
    - `years_experience`
    - `industry_domains`
@@ -73,8 +73,63 @@ An **Azure Function** with an **Event Grid trigger** listens for new blobs acros
    - `education` (degree, field, institution)
    - `languages`
    - `additional_information`
-5. The resulting JSON metadata is uploaded to the **`cv-metadata`** container as `{candidate_name}.json`.
-#### 2.5 **Output of this step:** A structured JSON profile per candidate, stored in `cv-metadata`, which in turn triggers **Step 3**.
+The resulting JSON metadata is uploaded to the **`cv-metadata`** container as `{candidate_file_name}.json`.
+
+#### 2.6 **Output of this step:** 
+A structured JSON profile per candidate, stored in `cv-metadata`extracted from un-structured pdf files.
+
+### 4: Azure AI Search Configuration (Embedding and Vectorzing Generation)
+ 
+This step builds the retrieval layer: candidate data is indexed into **Azure AI Search** with vector embeddings, so it can later be queried semantically (the "R" in RAG).
+ 
+#### 3.1 Create a Search Service 
+Provision an **Azure AI Search** service (choose a tier that supports vector search / semantic ranking).
+ 
+#### 3.2 Create an Index
+Define the index schema (fields, keys, filterable/searchable attributes) via the JSON index definition.
+ 
+#### 3.3 Create an Azure AI Foundry resource
+Provision an **Azure AI Foundry** project to host the embedding model deployment.
+ 
+#### 3.4 Deploy the embedding model
+Deploy **`text-embedding-3-small`** inside Azure AI Foundry.
+ 
+#### 3.5 Add a vector field to the indexes
+Add a `content_vector` field to the index with:
+- **Type:** `Collection(Edm.Single)`
+- **Dimensions:** 1536 *(the standard output size for `text-embedding-3-small`)*
+- **Vector profile:** references an **HNSW** vector search algorithm configuration
+- **Vectorizer:** connected to the Azure AI Foundry embedding deployment, using **API key** authentication
+- **Vectore algorithm** kinf hnsw
+
+#### 3.6 Create a Skillset
+Build a skillset with:
+- A **Merge Skill** to combine chunked/extracted text into a single text field
+- A **Text Embedding (Vectorization) Skill** that sends the merged text to the Azure AI Foundry embedding deployment and outputs the resulting vector
+
+#### 3.7 Attach the skillset to the Indexer
+Reference the skillset in the indexer definition, and configure the embedding skill's connection info (endpoint, deployment name, dimensions) to match the index field from 4.5.
+ 
+#### 3.8 Add Output Field Mappings
+In the indexer, map the skillset's vector output to the index's `content_vector` field (and map any other enriched/merged fields to their corresponding index fields).
+  "outputFieldMappings": [
+    {
+      "sourceFieldName": "/document/content_vectore",
+      "targetFieldName": "content_vectore",
+      "mappingFunction": null
+    },
+    {
+      "sourceFieldName": "/document/content_Vector",
+      "targetFieldName": "content_Vector",
+      "mappingFunction": null
+    }
+  ],
+  "cache": null,
+  "encryptionKey": null
+}
+ 
+#### 3.9 Reset and Run the Indexer
+Reset the indexer (to reprocess all documents against the new skillset/field mappings) and then run it. now all field are searchable
  
 ### 3. Chunking
 
