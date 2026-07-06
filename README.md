@@ -112,6 +112,7 @@ Reference the skillset in the indexer definition, and configure the embedding sk
  
 #### 3.8 Add Output Field Mappings
 In the indexer, map the skillset's vector output to the index's `content_vector` field (and map any other enriched/merged fields to their corresponding index fields).
+```json
   "outputFieldMappings": [
     {
       "sourceFieldName": "/document/content_vectore",
@@ -127,47 +128,11 @@ In the indexer, map the skillset's vector output to the index's `content_vector`
   "cache": null,
   "encryptionKey": null
 }
- 
+```
 #### 3.9 Reset and Run the Indexer
 Reset the indexer (to reprocess all documents against the new skillset/field mappings) and then run it. now all field are searchable
- 
-### 3. Chunking
-
-Split loaded documents into smaller chunks because LLMs have a context window limit and feeding an entire book or large report will fail.
-
-| Method                               | Description                                             | Notes                              |
-| ------------------------------------ | ------------------------------------------------------- | ---------------------------------- |
-| **Fixed-size / token-based**         | Split text every N tokens (e.g., 500 tokens)            | Simple, but may break sentences    |
-| **Fixed-size / character-based**     | Split text every N characters                           | Simple, but may cut words          |
-| **Sentence-based / paragraph-based** | Split by sentences or paragraphs                        | Preserves meaning, better for QA   |
-| **Overlap / sliding window**         | Each chunk overlaps with the previous (e.g., 50 tokens) | Keeps context continuity           |
-| **Semantic chunking**                | Split by meaning using embeddings or NLP                | Advanced, best for large documents |
-
-#### Tools Exapmles: langchain.text_splitter, nltk, or custom Python scripts
-
-### 4. Embedding Generation
-
-Convert each text chunk into a vector representation using an embedding model:
-#### Tools Examples:
- - OpenAI: text-embedding-3-small or text-embedding-3-large
- - Cohere, HuggingFace, or other embedding models
-
-## 5. Vector Store / Index
-
-Store all embeddings in a vector database for fast similarity search. In fact, we have to definea  collection and a database schema.
-### Schema Example:
-        ids = []
-        metadatas = []
-        documents_text = []
-        embedding_list= []
-
-### Tools Example ; 
-
-- FAISS (local, fast)
-- Weaviate, Pinecone, Milvus (cloud-ready)
-- Chroma (open-source, simple)
   
-## 6. Retrieval
+## 5. Retrieval
 
 When the user asks a question, we must convert the query into a query embedding using the same model, search the vector store for top-k, and return the most relevant chunks to the LLM.
 
