@@ -147,7 +147,7 @@ In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data sourc
 - Mettre en évidence les critères remplis par chaque candidat.  
 - Récupérer et résumer les informations pertinentes du candidat, telles que le nom, l’intitulé du poste, les années d’expérience, la formation, les compétences clés et les certifications.  
 - Le résultat doit être structuré au format JSON comme suit :  
-```json { { "intitulé_du_poste": "<intitulé du poste>", "meilleurs_candidats": [ { "  "nom_fiche_json":"",  "Nom du candidat",  ": "", "poste_actuel": "<intitulé du poste>", "années_d'expérience": "", "formation": "<diplôme, domaine, établissement>", "compétences_correspondantes": ["<compétence1>", "<compétence2>", ...], "score_de_correspondance": "" }, ... ] } ```
+```json { "intitulé_du_poste": "<intitulé du poste>", "meilleurs_candidats": [ { "  "nom_fiche_json":"",  "Nom du candidat",  ": "", "poste_actuel": "<intitulé du poste>", "années_d'expérience": "", "formation": "<diplôme, domaine, établissement>", "compétences_correspondantes": ["<compétence1>", "<compétence2>", ...], "score_de_correspondance": "" }, ... ] } ```
 ### 5.2 **Connect the model to Azure AI Search** 
 In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data source for the deployed model, with:
 - **Search type:** **Hybrid** (combines vector similarity search over `content_vector` with traditional keyword/BM25 search — typically gives more relevant results than either alone)
@@ -156,10 +156,53 @@ In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data sourc
 
 When the user asks a question, we must convert the query into a query embedding using the same model, search the vector store for top-k, and return the most relevant chunks to the LLM.
 
-## 7. Generation
+---
+ 
+### Step 6: Publish as a Microsoft Teams App
+ 
+To make the RAG assistant usable by end users, the deployed model/playground is published as a **Microsoft Teams application**, so recruiters/HR can query candidate data directly from Teams without needing access to the Azure Portal.
+ 
+#### 6.1 Publish from Azure AI Foundry
+From the deployed model's playground in Azure AI Foundry, use the **"Add a channel" / publish** option to publish the assistant as a Teams app.
+ 
+#### 6.2 Distribute the app
+Share or upload the generated Teams app package so it's available to the intended users — either individually, or published to the organization's internal Teams app catalog.
+ 
+#### 6.3 Grant user access
+Control who can use the app by managing access at the Teams app level (who it's shared with / installed for) and, if applicable, at the underlying Azure AI Foundry / Azure AI Search resource level (role assignments), so only authorized users (e.g., recruiters/HR) can query candidate data.
+ 
+**Output of this step:** The RAG assistant is available as a Teams app, letting authorized users ask natural-language questions about candidates directly from Microsoft Teams.
 
-Feed the retrieved chunks + user query to the LLM and LLM generates an answer grounded in the retrieved documents, reducing hallucinations.
-
+---
+ 
+## 7. Tech Stack
+ 
+| Component | Technology |
+|---|---|
+| Workflow Automation | Power Automate |
+| File Storage | Azure Blob Storage |
+| Event Routing | Azure Event Grid |
+| Compute | Azure Functions (Python) |
+| PDF Text Extraction | PyPDF2 |
+| CV Structuring / Scoring | OpenAI-compatible LLM / Azure OpenAI |
+| Metadata & Scoring Storage | Azure SQL Database |
+| Reporting | Excel (openpyxl) via Blob Storage |
+| Vector Search / Indexing | Azure AI Search (HNSW vector index) |
+| Embeddings | Azure AI Foundry — `text-embedding-3-small` |
+| RAG Generation Model | Azure AI Foundry — chat/completion model (hybrid search retrieval) |
+| Distribution / UI | Microsoft Teams app |
+ 
+## 7.1 Setup & Configuration
+ 
+**Environment variables (Azure Function App Settings):**
+ 
+| Variable | Used for |
+|---|---|
+| `AzureWebJobsStorage` | Blob Storage connection string |
+| `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT` / `AZURE_OPENAI_API_KEY` / `AZURE_MODEL_NAME` | CV metadata extraction (Step 2) |
+| `AZ_OPENAI_API_KEY` / `AZ_OPENAI_ENDPOINT` / `AZ_OPENAI_DEPLOYMENT` / `AZ_OPENAI_API_VERSION` | Candidate scoring (Step 3) |
+| `AZURE_SQL_SERVER` / `AZURE_SQL_DATABASE` / `AZURE_SQL_USER` / `AZURE_SQL_PASSWORD` | SQL inserts (Steps 1 & 3) |
+ 
 
 <img width="664" height="774" alt="Screenshot 2025-11-20 at 11 31 36" title="RAG Workflow"  src="https://github.com/user-attachments/assets/fadfde55-6fd7-4b16-a115-d8d0dcb431b4" />
 
