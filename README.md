@@ -16,18 +16,27 @@ With RAG: The system retrieves your internal refund policy document and The LLM 
 ## RAG Workflow Steps
 
 ### 1. Data Collection / Ingestion: 
-Collect all the sources like (PDFs, Word documents, HTML pages, emails, spreadsheets, internal knowledge bases, databases)  that the -bold RAG system will use 
+Collect all the sources like (PDFs, Word documents, HTML pages, emails, spreadsheets, internal knowledge bases, databases)  that the **RAG** system will use:
 
 A Power Automate flow is triggered whenever a new application email arrives at the `hello@...` inbox. The flow performs the following actions:
  
 1. **Trigger:** New email received at the `hello@...` address
-2. **Store attachment:** Saves the received application file (e.g., resume/CV) into **Azure Blob Storage**
+2. **Store attachment:** Saves the received application .pdf/ .docx file into **Azure Blob Storage**
 3. **Update Candidate Table (SQL Database):** Inserts a new record with:
    - **File name** – name of the received application file
    - **Inserted date** – timestamp when the record was added
    - **Email subject** – subject line of the received email
    - **To email address** – the internal recipient address the application was sent to (e.g., `hello@...`)
-**Output of this step:** Raw application files stored in Blob Storage + a SQL record tracking metadata for each application.
+**Output of this step:** Raw application files stored in Blob Storage + a SQL record tracking metadata for each application in Candidate_Applications_TABLE.
+**Table Schema: `Candidate_Applications_TABLE`**
+
+| Column | Type | Nullable | Description |
+|---|---|---|---|
+| `id` | `int` | No | Primary key / auto-generated record ID |
+| `candidate_filename` | `nvarchar` | No | Name of the received application file |
+| `inserted_at` | `datetime` | No | Timestamp when the record was inserted |
+| `application_title` | `nvarchar` | No | Subject line of the received email |
+| `email` | `nvarchar` | No | From email address |
  
 ---
 
