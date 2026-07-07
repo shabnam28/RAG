@@ -45,7 +45,7 @@ A Power Automate flow is triggered whenever a new application email arrives at t
 LLMs cannot read PDFs or Excel files directly so we are using Loaders to convert raw files into text that the LLM model can understand them.  Document loaders provide a standard interface for reading data from different sources (such as Slack, Notion, or Google Drive) into LangChain’s Document format. This ensures that data can be handled consistently regardless of the source.
 An **Azure Function** with an **Event Grid trigger** listens for new blobs across several containers and routes processing based on which container/file type triggered the event.
 
-#### 2.2 Event Grid Subscription Setup (prerequisite)
+#### 2.1 Event Grid Subscription Setup (prerequisite)
  
 Before the function can react automatically to new files, an **Event Grid Subscription** must be created on the Storage Account, pointing to this Azure Function:
  
@@ -56,15 +56,16 @@ Before the function can react automatically to new files, an **Event Grid Subscr
 5. Save — new blob uploads will now automatically trigger the function via the `EventGridTrigger`.
 Without this subscription, uploading a file to Blob Storage will **not** invoke the function.
  
-#### 2.3 **Trigger:** New blob created in the `cvfiles` container, with a `.pdf` extension.
+#### 2.2 **Trigger:** 
+New blob created in the `cvfiles` container, with a `.pdf` extension.
  
-#### 2.4 **Flow:**
+#### 2.3 **Flow:**
 1. The Event Grid event payload is parsed to get the container name and blob name/URL.
 2. The PDF file is downloaded from Blob Storage.
 3. Text is extracted from the PDF using **PyPDF2**.
 4. The extracted text is sent to an LLM (via an OpenAI-compatible client, `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT`) with a strict extraction prompt that builds a structured, ####
 
-#### 2.5 **factual-only** candidate profile (no inference/hallucination) containing:
+#### 2.4 **factual-only** candidate profile (no inference/hallucination) containing:
    - `candidate_title`
    - `years_experience`
    - `industry_domains`
@@ -75,10 +76,10 @@ Without this subscription, uploading a file to Blob Storage will **not** invoke 
    - `additional_information`
 The resulting JSON metadata is uploaded to the **`cv-metadata`** container as `{candidate_file_name}.json`.
 
-#### 2.6 **Output of this step:** 
+#### 2.5 **Output of this step:** 
 A structured JSON profile per candidate, stored in `cv-metadata`extracted from un-structured pdf files.
 
-### 4: Azure AI Search Configuration (Embedding and Vectorzing Generation)
+### 3: Azure AI Search Configuration (Embedding and Vectorzing Generation)
  
 This step builds the retrieval layer: candidate data is indexed into **Azure AI Search** with vector embeddings, so it can later be queried semantically (the "R" in RAG).
  
@@ -132,11 +133,12 @@ In the indexer, map the skillset's vector output to the index's `content_vector`
 #### 3.9 Reset and Run the Indexer
 Reset the indexer (to reprocess all documents against the new skillset/field mappings) and then run it. now all field are searchable
   
-## 5. Retrieval
-### 5.1 Deploy a chat model in Azure AI Foundry
+## 4. Retrieval
+
+### 4.1 Deploy a chat model in Azure AI Foundry
 Deploy an LLM (e.g., a GPT model) in the same Azure AI Foundry project used for embeddings, to serve as the generation/answering model for the RAG flow.
 In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data source for the deployed model, with:
-#### 5.1.1 **instruction** :
+#### 4.1.1 **instruction** :
  Vous êtes un Agent RH spécialisé dans la sélection de candidats. Votre rôle est d’analyser une description de poste ou une demande utilisateur et d’identifier les meilleurs candidats - --correspondant aux critères suivants :  
 - Intitulé du poste – Faire correspondre les intitulés de poste actuels ou passés des candidats avec la description du poste.  
 - Expérience – Prendre en compte les années d’expérience et leur pertinence par rapport au poste.  
@@ -148,33 +150,69 @@ In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data sourc
 - Récupérer et résumer les informations pertinentes du candidat, telles que le nom, l’intitulé du poste, les années d’expérience, la formation, les compétences clés et les certifications.  
 - Le résultat doit être structuré au format JSON comme suit :  
 ```json { "intitulé_du_poste": "<intitulé du poste>", "meilleurs_candidats": [ { "  "nom_fiche_json":"",  "Nom du candidat",  ": "", "poste_actuel": "<intitulé du poste>", "années_d'expérience": "", "formation": "<diplôme, domaine, établissement>", "compétences_correspondantes": ["<compétence1>", "<compétence2>", ...], "score_de_correspondance": "" }, ... ] } ```
-### 5.2 **Connect the model to Azure AI Search** 
+### 4.2 **Connect the model to Azure AI Search** 
 In Azure AI Foundry, add the Azure AI Search index (from Step 4) as a data source for the deployed model, with:
 - **Search type:** **Hybrid** (combines vector similarity search over `content_vector` with traditional keyword/BM25 search — typically gives more relevant results than either alone)
 - **Max retrieved documents:** the top-k number of matching chunks pulled from the index and injected into the model's context per query (tune based on chunk size and the model's context window)
-### 5.1 **Output of this step:** A working RAG endpoint — user queries are embedded, matched against candidate data in Azure AI Search via hybrid search, and the top-k results are passed to the LLM to generate a grounded answer.
+### 4.3 **Output of this step:** A working RAG endpoint — user queries are embedded, matched against candidate data in Azure AI Search via hybrid search, and the top-k results are passed to the LLM to generate a grounded answer.
 
 When the user asks a question, we must convert the query into a query embedding using the same model, search the vector store for top-k, and return the most relevant chunks to the LLM.
 
 ---
  
-### Step 6: Publish as a Microsoft Teams App
+### Step 5: Publish as a Microsoft Teams App
  
 To make the RAG assistant usable by end users, the deployed model/playground is published as a **Microsoft Teams application**, so recruiters/HR can query candidate data directly from Teams without needing access to the Azure Portal.
  
-#### 6.1 Publish from Azure AI Foundry
+#### 5.1 Publish from Azure AI Foundry
 From the deployed model's playground in Azure AI Foundry, use the **"Add a channel" / publish** option to publish the assistant as a Teams app.
  
-#### 6.2 Distribute the app
+#### 5.2 Distribute the app
 Share or upload the generated Teams app package so it's available to the intended users — either individually, or published to the organization's internal Teams app catalog.
  
-#### 6.3 Grant user access
+#### 5.3 Grant user access
 Control who can use the app by managing access at the Teams app level (who it's shared with / installed for) and, if applicable, at the underlying Azure AI Foundry / Azure AI Search resource level (role assignments), so only authorized users (e.g., recruiters/HR) can query candidate data.
  
 **Output of this step:** The RAG assistant is available as a Teams app, letting authorized users ask natural-language questions about candidates directly from Microsoft Teams.
 
 ---
+### Step 6: Evaluate RAG with Candidate Scoring Results (Azure Function)
  
+#### 6.1 Trigger:** New blob created in either the `cv-metadata` or `cvjsons` container, with a `.json` extension (i.e., the output of Step 2, or a manually/externally supplied candidate JSON).
+ 
+#### 6.2 **Flow:**
+1. The candidate JSON metadata is downloaded from Blob Storage.
+2. The JSON is sent to an **Azure OpenAI** deployment (`AZ_OPENAI_DEPLOYMENT`) along with a scoring rubric loaded from `system_prompt.txt`. The model scores the candidate on three axes:
+   - **Axe Technique** (technical)
+   - **Axe RSE** (corporate social responsibility)
+   - **Axe Vente** (sales)
+   Each axis returns a `score_total` plus a breakdown (`blocs`) across `experience`, `mots_cles` (keywords), `projets` (projects), and `formation` (education).
+3. `transform_scoring_result()` flattens the model's response into a single row: per-axis scores, a compact detail string (`Exp:.. | MC:.. | Proj:.. | Form:..`), per-axis justification text, and a **Total Score** (average of the three axis scores).
+4. The row is persisted in two places:
+   - **Excel report:** appended to `Candidate_score.xlsx` in the `cvjsons` blob container (created if it doesn't exist yet).
+   - **SQL database:** inserted into the `dbo.Nam_Candidate_Scores` table — **only when the trigger came from `cv-metadata`** (the `cvjsons` path only writes to Excel).
+#### 6.3 **Table Schema: `dbo.Nam_Candidate_Scores`**
+ 
+| Column | Description |
+|---|---|
+| `candidat` | Candidate identifier (source filename) |
+| `score_technique` | Technical score /100 |
+| `detail_technique` | Technical score breakdown (Exp/MC/Proj/Form) |
+| `justification_technique` | Model's justification for the technical score |
+| `score_rse` | RSE score /100 |
+| `detail_rse` | RSE score breakdown |
+| `justification_rse` | Model's justification for the RSE score |
+| `score_vente` | Sales score /100 |
+| `detail_vente` | Sales score breakdown |
+| `justification_vente` | Model's justification for the sales score |
+| `fichier_source` | Source file name |
+| `total_score` | Average of the three axis scores |
+ 
+#### 6.4 **Output of this step:** 
+A scored candidate record, available both in an Excel report and in the SQL scoring table.
+
+---
+
 ## 7. Tech Stack
  
 | Component | Technology |
